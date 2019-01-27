@@ -1,0 +1,128 @@
+---
+title: "Regression Models Final Project"
+author: "Shelby Bachman"
+date: '`r Sys.time()`'
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: no
+    theme: cosmo
+    toc: yes
+  pdf_document:
+    toc: no
+---
+
+# Is an automatic or manual transmission better for MPG?
+
+```{r setup, echo = FALSE, results = 'hide', warning = FALSE, message = FALSE}
+
+# clear workspace
+rm(list = ls())
+
+# set knitr options
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+
+# load packages
+library(rprojroot)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(corrplot)
+
+# source files within this project
+path <- function(x) find_root_file(x, criterion = has_file('regression-models-final-project.Rproj'))
+
+```
+
+```{r load_data, results = 'hide'}
+
+data(mtcars)
+
+```
+
+Before doing any modeling, I will get an overview of the data by plotting. Below, I include a boxplot depicting mpg for each automatic (red) and manual (blue) cars. Dots indicate actual data points, and the horizontal lines through the boxes reflect the median for each group. 
+
+```{r overview_data}
+
+mtcars <- mtcars %>%
+  mutate(am_name = ifelse(am == 0, 'automatic', 
+                          ifelse(am == 1, 'manual', NA)))
+p1 <- ggplot(aes(x = am_name, y = mpg, fill = factor(am_name)), data = mtcars) +
+  geom_boxplot(show.legend = FALSE) +
+  geom_point(show.legend = FALSE) +
+  labs(x = 'transmission type', y = 'MPG')
+
+p1
+
+```
+
+\newpage This plot shows that MPG does differ by transmission: cars with manual transmission had a higher 1st quantile, median, and 3rd quantile MPG than did cars with an automatic transmission. We can test whether the MPG of the transmission types is significantly different using a t-test:
+
+```{r t_test}
+
+t.test(mtcars$mpg[mtcars$am==0], mtcars$mpg[mtcars$am==1], paired = FALSE)
+
+```
+
+The results of the t-test indicate that the group difference is statistically signficant; we can reject the null hypothesis and conclude that cars with manual transmission have significantly higher MPG. In subsequent steps, I will quantify the MPG difference using linear modeling.
+
+# Quantify the MPG difference between automatic and manual transmissions
+
+Below, I will quantify the difference in MPG between automatic and manual transmissions using linear regression. I will first fit a linear model using MPG as the output and transmission (factor variable) as the predictor and interpret the regression coefficients to determine the impact of transmission type on MPG. This initial model will not take into account other variables in the `mtcars` dataset.
+
+```{r lm}
+
+fit <- lm(mpg ~ factor(am), data = mtcars)
+summary(fit)
+
+```
+
+\newpage Inspecting the summary of the model fit, several points are apparent. First, there is a significant effect of transmission type on MPG (*Pr(>|t|) = 0.000285*), which supports the analyses above. Secondly, the intercept estimate tells us the mean MPG value for automatic transmissions (am = 0) according to the model, which was *17.147*. In addition, the slope estimate for transmission type tells us the estimated increase in MPG for manual transmissions (am = 1) relative to automatic transmissions according to the model; this value was *7.245*. Finally, the overall adjusted R-squared value for the model was *0.3385*, indicating that 33.85% of the variance in MPG could be explained by the model. 
+
+Using the output above, I will now calculate a 95% confidence interval for the intercept and slope estimates:
+
+```{r calculate_confint}
+
+sumCoef <- summary(fit)$coefficients
+sumCoef[1,1] + c(-1, 1) * qt(0.975, df = fit$df) * sumCoef[1, 2]
+sumCoef[2,1] + c(-1, 1) * qt(0.975, df = fit$df) * sumCoef[2, 2]
+
+```
+
+The latter confidence interval (for the slope) indicates that, with 95%, we estimate that moving from automatic to manual transmission will result in an MPG increase of *3.64 to 10.85*.
+
+Although we found a significant effect of transmission type on MPG, the adjusted R-squared value suggests that other variables may be useful for accounting for more of the variance in MPG. It could be the case that variables excluded from the above model could account for more of the variance in MPG if included (see appendix below for an attempt to do so). 
+
+# Appendix: Extended model
+
+Below I include a correlation matrix with the areas of the circles reflecting absolute values of the corresponding correlation coefficients. Positive correlations are depicted in blue and negative in red.
+
+```{r cor_matrix}
+
+mtcars_forplot <- mtcars %>%  # choose only numeric variables
+  select(-am_name, -vs, -am, -gear, -carb)
+
+mtcars_cor <- cor(mtcars_forplot)
+corrplot(mtcars_cor, method = 'circle')
+
+```
+
+The plot shows that quite a few of the variables in the matrix are strongly correlated with MPG. Next, I will include four of the variables that appear strongly correlated with MPG (cyl, disp, hp, and wt) and include them as predictors in a linear model, along with the already-used transmission type variable.
+
+```{r lm_extended}
+
+fit2 <- lm(mpg ~ factor(am) + cyl + disp + hp + wt, data = mtcars)
+summary(fit2)
+
+```
+
+The model summary shows that this model accounts for much more variance in MPG (*Adjusted R-squared = 0.8273*). Critically, there is no longer a significant effect of transmission type on MPG. Instead, there is a significant effect of both gross horsepower (hp) and weight (wt) on MPG. More specifically, the slope terms for each variable indicate that as both gross horsepower and vehicle weight increase, MPG decreases. Number of cylinders (cyl) and displacement (disp) did not have a significant effect on MPG in this model. Next, I perform a comparison of the original model (MPG ~ am) and this extended model using the `anova()` function. 
+
+```{r model_comparison}
+
+anova(fit, fit2)
+
+```
+
+As expected, there is a significant advantage in including more variables in the model. Subsequent analyses could be performed to choose the most optimal model given all the possible variables in the `mtcars` dataset.
