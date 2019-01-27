@@ -94,7 +94,7 @@ The latter confidence interval (for the slope) indicates that, with 95%, we esti
 
 Although we found a significant effect of transmission type on MPG, the adjusted R-squared value suggests that other variables may be useful for accounting for more of the variance in MPG. It could be the case that variables excluded from the above model could account for more of the variance in MPG if included (see appendix below for an attempt to do so). 
 
-# Appendix: Extended model
+# Extended model
 
 Below I include a correlation matrix with the areas of the circles reflecting absolute values of the corresponding correlation coefficients. Positive correlations are depicted in blue and negative in red.
 
@@ -117,7 +117,7 @@ summary(fit2)
 
 ```
 
-The model summary shows that this model accounts for much more variance in MPG (*Adjusted R-squared = 0.8273*). Critically, there is no longer a significant effect of transmission type on MPG. Instead, there is a significant effect of both gross horsepower (hp) and weight (wt) on MPG. More specifically, the slope terms for each variable indicate that as both gross horsepower and vehicle weight increase, MPG decreases. Number of cylinders (cyl) and displacement (disp) did not have a significant effect on MPG in this model. Next, I perform a comparison of the original model (MPG ~ am) and this extended model using the `anova()` function. 
+The model summary shows that this model accounts for much more variance in MPG (*Adjusted R-squared = 0.8273*). Critically, in this model, there is no longer a significant effect of transmission type on MPG. Instead, there is a significant effect of both gross horsepower (hp) and weight (wt) on MPG. More specifically, the slope terms for each variable indicate that as both gross horsepower and vehicle weight increase, MPG decreases. Number of cylinders (cyl) and displacement (disp) did not have a significant effect on MPG in this model. Next, I perform a comparison of the original model (MPG ~ am) and this extended model using the `anova()` function. 
 
 ```{r model_comparison}
 
@@ -125,4 +125,18 @@ anova(fit, fit2)
 
 ```
 
-As expected, there is a significant advantage in including more variables in the model. Subsequent analyses could be performed to choose the most optimal model given all the possible variables in the `mtcars` dataset.
+As expected, there is a significant advantage in including more variables in the model. Next, I include some diagnostic plots to further inspect the fit of this extended model.
+
+```{r model_plots}
+
+par(mfrow=c(2,2))
+par(mar = rep(2, 4))
+plot(fit2)
+
+```
+
+In the first plot, the residuals are approximately distributed along the horizontal line, but there are several values at each end of the x-axis with higher residual values. As such, since the red line is slightly curved at each end, including a quadratic term in the model may improve the model fit. The second plot indicates that the residuals are approximately normally distributed, with the exception of observations #17, 18, and 20. The third plot suggests that the residuals have approximately uniform variance across the predictor range. The fourth plot of residuals versus leverage shows that observation #31 has high leverage, so in subsequent analyses this observation could be excluded and the effect on the model fit examined.
+
+# Summary of results
+
+In this report, I analyzed the relationship between transmission type and MPG in the `mtcars` dataset. I found that, other variables aside, cars with manual transmission had a significantly MPG value than did cars with automatic transmission. A simple linear model with transmission type as a predictor and MPG as the outcome variable confirmed this relationship between transmission type and MPG, but the model did not account for a majority of variance in MPG. I subsequently chose to include additional variables from the `mtcars` dataset (horsepower, weight, displacement, number of cyclinders) as predictors in an extended linear model in an attempt to account for more of the variance in MPG. When taking these variables into account, transmission type no longer had a significant effect on MPG; gross horsepower and weight were the variables related to MPG, with each variable having an inverse relationship with MPG.
